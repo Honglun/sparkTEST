@@ -2,6 +2,7 @@ package utils;
 
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
+import kafka.cluster.BrokerEndPoint;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
@@ -11,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 public class KafkaOffsetTool {
 
@@ -32,14 +34,13 @@ public class KafkaOffsetTool {
 
 		Map<TopicAndPartition, Long> topicAndPartitionLongMap = new HashMap();
 
-		Map<TopicAndPartition, Broker> topicAndPartitionBrokerMap = KafkaOffsetTool.getInstance().findLeader(brokerList,
+		Map<TopicAndPartition, BrokerEndPoint> topicAndPartitionBrokerMap = KafkaOffsetTool.getInstance().findLeader(brokerList,
 				topics);
 
-		for (Map.Entry<TopicAndPartition, Broker> topicAndPartitionBrokerEntry : topicAndPartitionBrokerMap
+		for (Map.Entry<TopicAndPartition, BrokerEndPoint> topicAndPartitionBrokerEntry : topicAndPartitionBrokerMap
 				.entrySet()) {
 			// get leader broker
-			Broker leaderBroker = topicAndPartitionBrokerEntry.getValue();
-
+			BrokerEndPoint leaderBroker = topicAndPartitionBrokerEntry.getValue();
 			SimpleConsumer simpleConsumer = new SimpleConsumer(leaderBroker.host(), leaderBroker.port(), TIMEOUT,
 					BUFFERSIZE, groupId);
 
@@ -65,13 +66,13 @@ public class KafkaOffsetTool {
 
 		Map<TopicAndPartition, Long> topicAndPartitionLongMap = new HashMap();
 
-		Map<TopicAndPartition, Broker> topicAndPartitionBrokerMap = KafkaOffsetTool.getInstance().findLeader(brokerList,
+		Map<TopicAndPartition, BrokerEndPoint> topicAndPartitionBrokerMap = KafkaOffsetTool.getInstance().findLeader(brokerList,
 				topics);
 
-		for (Map.Entry<TopicAndPartition, Broker> topicAndPartitionBrokerEntry : topicAndPartitionBrokerMap
+		for (Map.Entry<TopicAndPartition, BrokerEndPoint> topicAndPartitionBrokerEntry : topicAndPartitionBrokerMap
 				.entrySet()) {
 			// get leader broker
-			Broker leaderBroker = topicAndPartitionBrokerEntry.getValue();
+			BrokerEndPoint leaderBroker = topicAndPartitionBrokerEntry.getValue();
 
 			SimpleConsumer simpleConsumer = new SimpleConsumer(leaderBroker.host(), leaderBroker.port(), TIMEOUT,
 					BUFFERSIZE, groupId);
@@ -94,14 +95,14 @@ public class KafkaOffsetTool {
 	 * @param topics
 	 * @return topicAndPartitions
 	 */
-	private Map<TopicAndPartition, Broker> findLeader(String brokerList, List<String> topics) {
+	private Map<TopicAndPartition, BrokerEndPoint> findLeader(String brokerList, List<String> topics) {
 		// get broker's url array
 		String[] brokerUrlArray = getBorkerUrlFromBrokerList(brokerList);
 		// get broker's port map
 		Map<String, Integer> brokerPortMap = getPortFromBrokerList(brokerList);
 
 		// create array list of TopicAndPartition
-		Map<TopicAndPartition, Broker> topicAndPartitionBrokerMap = new HashMap();
+		Map<TopicAndPartition, BrokerEndPoint> topicAndPartitionBrokerMap = new HashMap();
 
 		for (String broker : brokerUrlArray) {
 
