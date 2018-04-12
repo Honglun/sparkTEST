@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.Set;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
+import org.apache.spark.api.java.function.Function;
 import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.api.java.JavaInputDStream;
 import org.apache.spark.streaming.api.java.JavaPairInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
 import org.apache.spark.streaming.kafka.HasOffsetRanges;
@@ -16,6 +18,7 @@ import org.apache.spark.streaming.kafka.KafkaUtils;
 import org.apache.spark.streaming.kafka.OffsetRange;
 
 import kafka.common.TopicAndPartition;
+import kafka.message.MessageAndMetadata;
 import kafka.serializer.StringDecoder;
 import scala.Tuple2;
 import scala.collection.JavaConversions;
@@ -25,7 +28,8 @@ public class WordCountFromKafkaDirect {
 	
 	public static void main(String[] args) {
 		
-		SparkConf conf = new SparkConf().setAppName("WordCountFromKafka").setMaster("local[2]");
+		//SparkConf conf = new SparkConf().setAppName("WordCountFromKafka").setMaster("local[2]");
+		SparkConf conf = new SparkConf().setAppName("WordCountFromKafka");
 		JavaStreamingContext jssc = new JavaStreamingContext(conf, Durations.seconds(5));
 		//String zk="34.213.211.112:2181,54.203.117.18:2181,54.191.251.19:2181";
 		String brokers="172.31.22.6:9092,172.31.27.71:9092";
@@ -36,6 +40,7 @@ public class WordCountFromKafkaDirect {
 		Map<String, String> kafkaParams = new HashMap<>();
 	    //kafkaParams.put("metadata.broker.list", brokers);
 		kafkaParams.put("bootstrap.servers", brokers);
+		//kafkaParams.put("auto.commit.enable", "false");
 	    //kafkaParams.put("zookeeper.connect", "34.208.23.204:2181,54.245.220.108:2181,34.209.142.234:2181");
 	    //kafkaParams.put("auto.offset.reset", "latest");
 	    kafkaParams.put("group.id", "direct1");
@@ -74,18 +79,46 @@ public class WordCountFromKafkaDirect {
 			}
 		}
 	    
-		JavaPairInputDStream<String, String> directStream = KafkaUtils.createDirectStream(jssc, String.class, String.class, StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
+//		JavaPairInputDStream<String, String> directStream = KafkaUtils.createDirectStream(jssc, String.class,
+//				String.class, StringDecoder.class, StringDecoder.class, kafkaParams, topicsSet);
+		
+		JavaInputDStream<String> directStream = KafkaUtils.createDirectStream(
+                jssc,
+                String.class,
+                String.class,
+                StringDecoder.class,
+                StringDecoder.class,
+                String.class,
+                kafkaParams,
+                consumerOffsetsLong,
+                new Function<MessageAndMetadata<String, String>, String>() {
+					private static final long serialVersionUID = 1L;
+
+					public String call(MessageAndMetadata<String, String> v1) throws Exception {
+                        return v1.message();
+                    }
+                }
+        );
+		
+		
 		directStream.foreachRDD(rdd -> {
 			  OffsetRange[] offsetRanges = ((HasOffsetRanges) rdd.rdd()).offsetRanges();
+			  for(OffsetRange o:offsetRanges){
+				  System.out.println(
+					      "hello "+o.topic() + " " + o.partition() + " " + o.fromOffset() + " " + o.untilOffset());
+			  }
 			  rdd.foreachPartition(consumerRecords -> {
 				  
 				consumerRecords.forEachRemaining(consumerRecord -> {
-					System.out.println(consumerRecord._2);
-					String[] words=consumerRecord._2.split(" ");
+					System.out.println(consumerRecord);
 				});
 			    OffsetRange o = offsetRanges[TaskContext.get().partitionId()];
 			    System.out.println(
 			      o.topic() + " " + o.partition() + " " + o.fromOffset() + " " + o.untilOffset());
+			    
+			    //offsetRanges.set(offsetRanges);
+			    //((CanCommitOffsets) directStream.inputDStream()).commitAsync(offsetRanges);
+			    //directStream.inputDStream().
 			  });
 			});
 		

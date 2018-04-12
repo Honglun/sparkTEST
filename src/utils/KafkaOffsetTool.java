@@ -3,6 +3,8 @@ package utils;
 import kafka.api.PartitionOffsetRequestInfo;
 import kafka.cluster.Broker;
 import kafka.cluster.BrokerEndPoint;
+import kafka.common.OffsetAndMetadata;
+import kafka.common.OffsetMetadata;
 import kafka.common.TopicAndPartition;
 import kafka.javaapi.*;
 import kafka.javaapi.consumer.SimpleConsumer;
@@ -12,6 +14,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 
 
 public class KafkaOffsetTool {
@@ -218,6 +221,35 @@ public class KafkaOffsetTool {
 			}
 		}
 		return map;
+	}
+	
+	
+	private boolean setOffset(SimpleConsumer consumer, TopicAndPartition topicAndPartition,
+			String clientName,long offset) {
+		Map<TopicAndPartition, PartitionOffsetRequestInfo> requestInfo = new HashMap<TopicAndPartition, PartitionOffsetRequestInfo>();
+
+		requestInfo.put(topicAndPartition, new PartitionOffsetRequestInfo(kafka.api.OffsetRequest.LatestTime(), 1));
+
+		Map<TopicAndPartition, OffsetAndMetadata> requestInfo2 = new HashMap<TopicAndPartition, OffsetAndMetadata>();
+		OffsetAndMetadata offsetAndMetadata = new OffsetAndMetadata(
+				new OffsetMetadata(offset, OffsetMetadata.NoMetadata()), offset, -1L);
+		requestInfo2.put(topicAndPartition, offsetAndMetadata);
+		OffsetCommitRequest offsetCommitRequest = new OffsetCommitRequest(clientName, requestInfo2, BUFFERSIZE, clientName);
+		OffsetCommitRequest commitRequest = new OffsetCommitRequest(clientName, requestInfo2, 0, clientName,kafka.api.OffsetRequest.CurrentVersion());
+		consumer.commitOffsets(commitRequest);
+
+		OffsetCommitResponse response = null;
+		while (true) {
+			try {
+				System.out.println("partition "+topicAndPartition.partition()+" commit offest");
+				response = consumer.commitOffsets(commitRequest);
+				if (response != null)
+					break;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		}
+		return response.hasError();
 	}
 
 	public static void main(String[] args) {
